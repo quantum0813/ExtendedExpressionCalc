@@ -3,6 +3,7 @@
 #include "AST.hpp"
 
 #include <string>
+#include <assert.h>
 
 Expression * Parser::Parse() {
     if (mTokenList.size() == 0)
@@ -13,8 +14,12 @@ Expression * Parser::Parse() {
 }
 
 void Parser::next() {
-    mLookAhead = mTokenList[mCurrentIndex];
-    mCurrentIndex++;
+    do {
+        if (mCurrentIndex < mTokenList.size()) {
+            mLookAhead = mTokenList[mCurrentIndex];
+            mCurrentIndex++;
+        }
+    } while (mLookAhead.getType() == TokenType::WHITESPACE);
 }
 
 Expression * Parser::expression() {
@@ -114,7 +119,7 @@ Expression * Parser::additiveExpr() {
             case TokenType::MINUS:
                 next();
                 e2 = multiplicativeExpr();
-                e = new AdditionExpression(e, e2);
+                e = new SubtractionExpression(e, e2);
                 break;
         }
     }
@@ -122,23 +127,23 @@ Expression * Parser::additiveExpr() {
 }
 
 Expression * Parser::multiplicativeExpr() {
-    Expression * e = unaryExpr();
+    Expression * e = primaryExpr();
     while (mLookAhead.getType() == TokenType::MULTIPLY || mLookAhead.getType() == TokenType::DIVIDE || mLookAhead.getType() == TokenType::MOD) {
         Expression * e2 = nullptr;
         switch (mLookAhead.getType()) {
             case TokenType::MULTIPLY:
                 next();
-                e2 = unaryExpr();
+                e2 = primaryExpr();
                 e = new MultiplicationExpression(e, e2);
                 break;
             case TokenType::DIVIDE:
                 next();
-                e2 = unaryExpr();
+                e2 = primaryExpr();
                 e = new DivisionExpression(e, e2);
                 break;
             case TokenType::MOD:
                 next();
-                e2 = unaryExpr();
+                e2 = primaryExpr();
                 e = new ModExpression(e, e2);
                 break;
         }
@@ -146,30 +151,8 @@ Expression * Parser::multiplicativeExpr() {
     return e;
 }
 
-Expression * Parser::unaryExpr() {
-    Expression * e = primaryExpr();
-    while (mLookAhead.getType() == TokenType::MINUS || mLookAhead.getType() == TokenType::PLUS || mLookAhead.getType() == TokenType::NOT) {
-        switch (mLookAhead.getType()) {
-            case TokenType::MINUS:
-                next();
-                e = new NegationExpression(e);
-                break;
-            case TokenType::PLUS:
-                next();
-                e = new PositiveExpression(e);
-                break;
-            case TokenType::NOT:
-                next();
-                e = new NotExpression(e);
-                break;
-        }
-    }
-    return e;
-}
-
 Expression * Parser::primaryExpr() {
-    if (mLookAhead.getType() == TokenType::TRUE || mLookAhead.getType() == TokenType::FALSE ||
-                                                   mLookAhead.getType() == TokenType::NUMBER) {
+    if (mLookAhead.getType() == TokenType::TRUE || mLookAhead.getType() == TokenType::FALSE || mLookAhead.getType() == TokenType::NUMBER || mLookAhead.getType() == TokenType::PLUS || mLookAhead.getType() == TokenType::MINUS || mLookAhead.getType() == TokenType::NOT) {
         switch (mLookAhead.getType()) {
             case TokenType::TRUE:
                 next();
@@ -177,10 +160,29 @@ Expression * Parser::primaryExpr() {
             case TokenType::FALSE:
                 next();
                 return new Value(false);
-            case TokenType::NUMBER:
+            case TokenType::NUMBER: {
                 int val = atoi(mLookAhead.getText()->c_str());
                 next();
                 return new Value(val);
+            }
+            case TokenType::PLUS: {
+                next();
+                int val2 = atoi(mLookAhead.getText()->c_str());
+                next();
+                return new PositiveExpression(new Value(val2));
+            }
+            case TokenType::MINUS: {
+                next();
+                int val3 = atoi(mLookAhead.getText()->c_str());
+                next();
+                return new NegationExpression(new Value(val3));
+            }
+            case TokenType::NOT: {
+                next();
+                bool val4 = mLookAhead.getType() == TokenType::TRUE;
+                next();
+                return new NotExpression(new Value(val4));
+            }
         }
     } else if (mLookAhead.getType() == TokenType::LPAREN) {
         next();
@@ -191,9 +193,6 @@ Expression * Parser::primaryExpr() {
         }
         next();
         return e;
-    } else if (mLookAhead.getType() == TokenType::WHITESPACE) {
-        // Skip the whitespace token
-        next();
     } else {
         // Unexpected token
         // Throw exception
