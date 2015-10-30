@@ -4,4 +4,4 @@ project(ExtendedCalc)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 set(SOURCE_FILES main.cpp AST.cpp Lexer.cpp Parser.cpp)
-add_executable(extendedCalc ${SOURCE_FILES})
+add_executable(ExtendedCalc ${SOURCE_FILES})
